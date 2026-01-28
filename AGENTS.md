@@ -48,6 +48,7 @@ Use .env (or environment variables) for:
 - Prefer small, testable modules: auth, attendance, scheduler, discord, storage.
 - Add robust logging and error handling; never silently fail.
 - Avoid hard-coded constants; centralize in config.
+- Never commit sensitive user data. Data regarding general calls is acceptible.
 
 ## When Unsure
 - If API endpoints or headers are unclear, verify via current sources before coding.
