@@ -62,6 +62,7 @@ npm run dev
 - Cron uses Asia/Shanghai by default.
 - On startup, if the last successful check-in is before today (Asia/Shanghai), it runs immediately.
 - If credentials expire, the bot will notify you to refresh the cookie.
+- If `DISCORD_WEBHOOK_URL` is set, notifications are sent through the webhook.
 
 ## Credits
 Big thanks to [cptmacp](https://gist.github.com/cptmacp/70f66f2a4fb9d5fa708d33fbcc8e265a) for the logic, and to [torikushiii](https://github.com/torikushiii/hoyolab-auto) for the inspiration.

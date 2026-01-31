@@ -22,13 +22,13 @@ async function main() {
   let discordClient: Awaited<ReturnType<typeof startDiscordBot>> | null = null
   let lastRunSummary = 'No runs yet.'
 
-  const notify = async (message: DiscordMessagePayload) => {
-    if (discordClient && config.DISCORD_CHANNEL_ID) {
-      await sendDiscordMessage(discordClient, config.DISCORD_CHANNEL_ID, message)
-      return
-    }
+  const notifyPublic = async (message: DiscordMessagePayload) => {
     if (config.DISCORD_WEBHOOK_URL) {
       await sendWebhook(config.DISCORD_WEBHOOK_URL, message)
+      return
+    }
+    if (discordClient && config.DISCORD_CHANNEL_ID) {
+      await sendDiscordMessage(discordClient, config.DISCORD_CHANNEL_ID, message)
       return
     }
     if (typeof message === 'string') {
@@ -119,8 +119,10 @@ async function main() {
           logger.warn('Attendance check-in failed', { profile: label, message: result.message })
         }
 
-        const embed = buildRunEmbed(runResult, reason, index, runProfiles.length, startedAt)
-        await notify({ embeds: [embed] })
+        if (reason !== 'manual') {
+          const embed = buildRunEmbed(runResult, reason, index, runProfiles.length, startedAt)
+          await notifyPublic({ embeds: [embed] })
+        }
 
         const summary = `${label}: ${ok ? 'ok' : 'failed'} - ${result.message}`
         logger.info(summary)

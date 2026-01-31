@@ -7,6 +7,16 @@ const COLOR_SUCCESS = 0xf59f00
 const COLOR_WARN = 0xf08c00
 const COLOR_ERROR = 0xe03131
 const COLOR_INFO = 0x4c6ef5
+const EMBED_AUTHOR_NAME = 'Perlica'
+const EMBED_AUTHOR_ICON_URL = 'https://play-lh.googleusercontent.com/l6FVNa293RykBWy88TqEhUakIcGSC8bRygSnKOBgztln48JX-WzMWnrBAETrKZsxDNC4HhwCsvfle_UI7rBE=s256-rw'
+
+function buildAuthor(): { name: string; iconURL: string } {
+  return { name: EMBED_AUTHOR_NAME, iconURL: EMBED_AUTHOR_ICON_URL }
+}
+
+export function getWebhookIdentity(): { username: string; avatarUrl: string } {
+  return { username: EMBED_AUTHOR_NAME, avatarUrl: EMBED_AUTHOR_ICON_URL }
+}
 
 function formatReason(reason: RunReason): string {
   switch (reason) {
@@ -75,7 +85,7 @@ export function buildRunEmbed(result: RunResult, reason: RunReason, index: numbe
 
   const embed = new EmbedBuilder()
     .setTitle('Endfield Attendance')
-    .setAuthor({ name: profileLabel })
+    .setAuthor(buildAuthor())
     .setColor(color)
     .addFields(
       { name: 'Today', value: formatTodayStatus(status), inline: true },
@@ -86,6 +96,10 @@ export function buildRunEmbed(result: RunResult, reason: RunReason, index: numbe
     )
     .setFooter({ text: footer })
     .setTimestamp(timestamp)
+
+  if (profileLabel) {
+    embed.setDescription(profileLabel)
+  }
 
   const icon = pickRewardIcon(result.rewards) ?? pickRewardIcon(status?.todayRewards)
   if (icon) {
@@ -100,9 +114,13 @@ export function buildStatusEmbed(profileLabel: string, status: AttendanceStatus,
 
   const embed = new EmbedBuilder()
     .setTitle('Endfield Attendance Status')
-    .setAuthor({ name: profileLabel })
+    .setAuthor(buildAuthor())
     .setColor(color)
     .setTimestamp(timestamp)
+
+  if (profileLabel) {
+    embed.setDescription(profileLabel)
+  }
 
   if (!status.ok) {
     embed.setDescription(status.message)
