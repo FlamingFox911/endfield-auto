@@ -67,7 +67,7 @@ function formatMissing(status?: AttendanceStatus): string {
 }
 
 export function buildRunEmbed(result: RunResult, reason: RunReason, index: number, total: number, timestamp = new Date()): APIEmbed {
-  const profileLabel = result.profileLabel ?? result.profileId
+  const profileLabel = result.profileLabel ?? 'Profile'
   const status = result.status
   const color = result.ok ? COLOR_SUCCESS : result.already ? COLOR_WARN : COLOR_ERROR
 
@@ -75,31 +75,27 @@ export function buildRunEmbed(result: RunResult, reason: RunReason, index: numbe
     ? formatRewardsList(result.rewards)
     : (status?.todayRewards ? formatRewardsList(status.todayRewards) : 'None')
 
-  const resultLine = result.ok
-    ? 'Success'
+  const resultText = result.ok
+    ? 'Attendance logged, Endmin. Endfield systems are steady.'
     : result.already
-      ? 'Already checked in'
-      : 'Failed'
+      ? 'Attendance already on record, Endmin. Endfield systems are steady.'
+      : 'Attendance failed, Endmin. Endfield systems report instability.'
 
   const footer = `Endfield Auto Check-in (${index}/${total}) - ${formatReason(reason)}`
 
   const embed = new EmbedBuilder()
-    .setTitle('Endfield Attendance')
+    .setTitle('Endfield Attendence')
     .setAuthor(buildAuthor())
     .setColor(color)
     .addFields(
-      { name: 'Today', value: formatTodayStatus(status), inline: true },
+      { name: 'Username', value: profileLabel, inline: false },
+      { name: "Today's Reward", value: rewardList, inline: true },
       { name: 'Progress', value: formatProgress(status), inline: true },
       { name: 'Missing', value: formatMissing(status), inline: true },
-      { name: "Today's Reward", value: rewardList, inline: false },
-      { name: 'Result', value: `${resultLine}: ${result.message}`, inline: false },
+      { name: 'Result', value: resultText, inline: false },
     )
     .setFooter({ text: footer })
     .setTimestamp(timestamp)
-
-  if (profileLabel) {
-    embed.setDescription(profileLabel)
-  }
 
   const icon = pickRewardIcon(result.rewards) ?? pickRewardIcon(status?.todayRewards)
   if (icon) {
@@ -111,19 +107,21 @@ export function buildRunEmbed(result: RunResult, reason: RunReason, index: numbe
 
 export function buildStatusEmbed(profileLabel: string, status: AttendanceStatus, timestamp = new Date()): APIEmbed {
   const color = status.ok ? COLOR_INFO : COLOR_ERROR
+  const resultText = status.ok
+    ? 'Status check complete, Endmin. Endfield systems are steady.'
+    : 'Status check failed, Endmin. Endfield systems report instability.'
 
   const embed = new EmbedBuilder()
-    .setTitle('Endfield Attendance Status')
+    .setTitle('Endfield Attendence')
     .setAuthor(buildAuthor())
     .setColor(color)
     .setTimestamp(timestamp)
 
-  if (profileLabel) {
-    embed.setDescription(profileLabel)
-  }
-
   if (!status.ok) {
-    embed.setDescription(status.message)
+    embed.addFields(
+      { name: 'Username', value: profileLabel, inline: false },
+      { name: 'Result', value: resultText, inline: false },
+    )
       .setFooter({ text: 'Status check failed' })
     return embed.toJSON()
   }
@@ -134,10 +132,11 @@ export function buildStatusEmbed(profileLabel: string, status: AttendanceStatus,
 
   embed
     .addFields(
-      { name: 'Today', value: formatTodayStatus(status), inline: true },
+      { name: 'Username', value: profileLabel, inline: false },
+      { name: "Today's Reward", value: rewardList, inline: true },
       { name: 'Progress', value: formatProgress(status), inline: true },
       { name: 'Missing', value: formatMissing(status), inline: true },
-      { name: "Today's Reward", value: rewardList, inline: false },
+      { name: 'Result', value: resultText, inline: false },
     )
     .setFooter({ text: 'Status check' })
 

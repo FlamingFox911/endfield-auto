@@ -22,6 +22,11 @@ export function parseProfilesFile(input: unknown): ProfilesFile {
   return profilesFileSchema.parse(input) as ProfilesFile
 }
 
-export function formatProfileLabel(profile: EndfieldProfile): string {
-  return profile.accountName ? `${profile.id} (${profile.accountName})` : profile.id
+export function formatProfileLabel(profile: EndfieldProfile, index?: number): string {
+  const name = profile.accountName?.trim()
+  if (name) return name
+  if (typeof index === 'number') {
+    return `Profile ${index}`
+  }
+  return 'Profile'
 }

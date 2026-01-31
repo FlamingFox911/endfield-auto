@@ -49,6 +49,7 @@ Use .env (or environment variables) for:
 - Add robust logging and error handling; never silently fail.
 - Avoid hard-coded constants; centralize in config.
 - Never commit sensitive user data. Data regarding general calls is acceptible.
+- Keep front-facing integrations (Discord/webhook messages) in-universe; keep backend terminal logs descriptive for administrators.
 
 ## When Unsure
 - If API endpoints or headers are unclear, verify via current sources before coding.

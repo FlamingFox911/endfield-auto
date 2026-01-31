@@ -81,7 +81,7 @@ async function main() {
       let index = 0
       for (const profile of runProfiles) {
         index += 1
-        const label = formatProfileLabel(profile)
+        const label = formatProfileLabel(profile, index)
         logger.info(`Running attendance for ${label} (${reason})`)
 
         const result = await attend(profile)
@@ -134,7 +134,7 @@ async function main() {
         const progress = item.status && typeof item.status.doneCount === 'number' && typeof item.status.totalCount === 'number'
           ? `${item.status.doneCount}/${item.status.totalCount}`
           : 'unknown'
-        return `${item.profileLabel ?? item.profileId}: ${status} - ${item.message} (today: ${todayStatus}, progress: ${progress})`
+        return `${item.profileLabel ?? 'Profile'}: ${status} - ${item.message} (today: ${todayStatus}, progress: ${progress})`
       })
       lastRunSummary = summaryLines.join('\n')
 
@@ -167,8 +167,10 @@ async function main() {
       },
       getStatus: async () => {
         const embeds = []
+        let index = 0
         for (const profile of profiles) {
-          const label = formatProfileLabel(profile)
+          index += 1
+          const label = formatProfileLabel(profile, index)
           const status = await fetchAttendanceStatus(profile)
           embeds.push(buildStatusEmbed(label, status))
         }

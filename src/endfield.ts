@@ -1,6 +1,7 @@
 import type {
   AttendanceResponse,
   AttendanceResult,
+  AttendanceCalendarItem,
   AttendanceReward,
   AttendanceResourceInfo,
   AttendanceStatus,
@@ -8,6 +9,7 @@ import type {
 } from './types.js'
 import { logger } from './logger.js'
 import { buildSignHeaders } from './sign.js'
+import { getShanghaiDate, getShanghaiDateFromUnixSeconds } from './utils.js'
 
 const ATTENDANCE_URL = 'https://zonai.skport.com/web/v1/game/endfield/attendance'
 const ORIGIN = 'https://game.skport.com'
@@ -87,6 +89,26 @@ function rewardsFromAwards(awards: Array<{ name?: string; count?: number; amount
     .filter((reward): reward is AttendanceReward => reward !== null)
 }
 
+function parseDayOfMonth(dateString: string): number | null {
+  const parts = dateString.split('-')
+  if (parts.length !== 3) return null
+  const day = Number(parts[2])
+  return Number.isFinite(day) ? day : null
+}
+
+function getShanghaiDayOfMonth(currentTs?: string): number | null {
+  const dateString = currentTs ? getShanghaiDateFromUnixSeconds(currentTs) : getShanghaiDate()
+  return parseDayOfMonth(dateString)
+}
+
+function countMissedDays(calendar: AttendanceCalendarItem[], todayDay: number | null): number {
+  if (!todayDay) {
+    return calendar.filter(item => !item.done).length
+  }
+  const cappedIndex = Math.min(Math.max(todayDay - 1, 0), calendar.length)
+  return calendar.slice(0, cappedIndex).filter(item => !item.done).length
+}
+
 export async function fetchAttendanceStatus(profile: EndfieldProfile): Promise<AttendanceStatus> {
   const signHeaders = buildSignHeaders(profile, ATTENDANCE_URL, 'GET')
   const headers = buildHeaders(profile, signHeaders)
@@ -119,7 +141,8 @@ export async function fetchAttendanceStatus(profile: EndfieldProfile): Promise<A
   const calendar = payload.data?.calendar ?? []
   const doneCount = calendar.filter(item => item.done).length
   const totalCount = calendar.length
-  const missingCount = totalCount - doneCount
+  const todayDay = getShanghaiDayOfMonth(payload.data?.currentTs)
+  const missingCount = countMissedDays(calendar, todayDay)
   const todayRewards = calendar
     .filter(item => item.available)
     .map(item => rewardFromResourceInfo(payload.data?.resourceInfoMap?.[item.awardId]))
@@ -185,14 +208,11 @@ export async function attend(profile: EndfieldProfile): Promise<AttendanceResult
     let nextStatus = status
     if (status.ok) {
       const doneCount = typeof status.doneCount === 'number' ? Math.min(status.doneCount + 1, status.totalCount ?? status.doneCount + 1) : undefined
-      const totalCount = status.totalCount
       nextStatus = {
         ...status,
         hasToday: true,
         doneCount,
-        missingCount: typeof totalCount === 'number' && typeof doneCount === 'number'
-          ? Math.max(totalCount - doneCount, 0)
-          : status.missingCount,
+        missingCount: status.missingCount,
         todayRewards: undefined,
       }
     }
