@@ -46,6 +46,7 @@ Use .env (or environment variables) for:
 
 ## Engineering Notes
 - Prefer small, testable modules: auth, attendance, scheduler, discord, storage.
+- Favor modular, object-oriented design where appropriate: isolate responsibilities into classes/services and define clear interfaces.
 - Add robust logging and error handling; never silently fail.
 - Avoid hard-coded constants; centralize in config.
 - Never commit sensitive user data. Data regarding general calls is acceptible.

@@ -1,36 +1,7 @@
-import { Client, GatewayIntentBits, REST, Routes } from 'discord.js'
+import { Client, GatewayIntentBits } from 'discord.js'
 import type { APIEmbed } from 'discord.js'
-import { logger } from './logger.js'
-
-const COMMANDS = [
-  {
-    name: 'checkin',
-    description: 'Run Endfield attendance now',
-  },
-  {
-    name: 'status',
-    description: 'Show last attendance status',
-  },
-]
-
-export async function registerCommands(token: string, appId: string, guildId: string): Promise<void> {
-  const rest = new REST({ version: '10' }).setToken(token)
-  await rest.put(Routes.applicationGuildCommands(appId, guildId), { body: COMMANDS })
-}
-
-export type DiscordMessagePayload = string | {
-  content?: string
-  embeds?: APIEmbed[]
-}
-
-export interface DiscordStartOptions {
-  token: string
-  channelId: string
-  appId?: string
-  guildId?: string
-  onCheckIn: () => Promise<DiscordMessagePayload>
-  getStatus: () => Promise<DiscordMessagePayload>
-}
+import { logger } from '../../utils/logger.js'
+import type { DiscordMessagePayload, DiscordStartOptions } from './types.js'
 
 function normalizePayload(payload: DiscordMessagePayload): { content?: string; embeds?: APIEmbed[] } {
   if (typeof payload === 'string') {

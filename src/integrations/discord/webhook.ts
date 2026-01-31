@@ -1,5 +1,5 @@
-import type { DiscordMessagePayload } from './discord.js'
-import { getWebhookIdentity } from './discord-format.js'
+import type { DiscordMessagePayload } from './types.js'
+import { getWebhookIdentity } from './format.js'
 
 export async function sendWebhook(
   webhookUrl: string,

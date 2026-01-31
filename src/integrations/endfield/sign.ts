@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import type { EndfieldProfile } from './types.js'
+import type { EndfieldProfile } from '../../types/index.js'
 
 type SignInput = {
   url: string

@@ -1,7 +1,7 @@
 import { EmbedBuilder } from 'discord.js'
 import type { APIEmbed } from 'discord.js'
-import type { AttendanceReward, AttendanceStatus, RunResult } from './types.js'
-import type { RunReason } from './scheduler.js'
+import type { AttendanceReward, AttendanceStatus, RunResult } from '../../types/index.js'
+import type { RunReason } from '../../core/attendance/types.js'
 
 const COLOR_SUCCESS = 0xf59f00
 const COLOR_WARN = 0xf08c00
