@@ -4,7 +4,7 @@ Automates Endfield daily attendance with a scheduled job and Discord notificatio
 
 ## Quick start
 
-1. Copy `.env.example` to `.env` and fill in Discord settings.
+1. Copy `.env.example` to `.env` and fill in Discord settings if you want notifications or commands.
 2. Create a profiles file at `.data/profiles.json` (or set `PROFILE_PATH`).
 3. Build and run with Docker, Docker Compose, or Node.
 
@@ -17,11 +17,12 @@ Copy `.env.example` to `.env`. Values are read from `.env` or container env.
 - `PROFILE_PATH` (optional; defaults to `.data/profiles.json`)
 - `DATA_PATH` (optional; defaults to `.data`)
 - `CRON_SCHEDULE` (default `0 2 * * *`, Asia/Shanghai)
-- `TZ` (optional timezone override; default `Asia/Shanghai`)
+- `TZ` (optional timezone override for the cron schedule; default `Asia/Shanghai`)
 
 Discord options:
 - **Webhook only (notifications only):** set `DISCORD_WEBHOOK_URL` and skip the bot fields.
 - **Bot + slash commands:** set all of `DISCORD_BOT_TOKEN`, `DISCORD_APP_ID`, `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_ID`.
+- If both webhook and bot are configured, notifications are sent via the webhook; the bot still handles slash commands.
 
 ## Profiles file
 
@@ -65,7 +66,7 @@ This project does **not** store passwords. The values are captured from the Endf
 
 Notes:
 - You do **not** need to save `timestamp` or `sign`. The service computes them.
-- `signSecret` is optional and rarely present; if you have it, it can replace `signToken`.
+- `signSecret` is optional; if present it takes precedence over `signToken`.
 - The `sk-game-role` value is easiest to copy directly from the attendance request headers.
 
 ## Project structure (src)
@@ -102,9 +103,9 @@ npm run dev
 ```
 
 ## Notes
-- Cron uses Asia/Shanghai by default.
+- Cron uses Asia/Shanghai by default (or `TZ` if provided); date comparisons for "today" always use Asia/Shanghai.
 - On startup, if the last successful check-in is before today (Asia/Shanghai), it runs immediately.
-- If credentials expire, the bot will notify you to refresh the cookie.
+- If credentials expire, check-ins will fail; Discord embeds (when enabled) are generic, so check logs for the specific error and refresh the cookie values.
 - If `DISCORD_WEBHOOK_URL` is set, notifications are sent through the webhook.
 
 ## Credits
