@@ -6,11 +6,27 @@ import { StateStore } from '../core/state/store.js'
 import { EndfieldClient } from '../integrations/endfield/client.js'
 import { DiscordNotifier } from '../integrations/discord/notifier.js'
 import { buildRunEmbed, buildStatusEmbed } from '../integrations/discord/format.js'
+import { configureLogger, logger } from '../utils/logger.js'
 import type { RunResult } from '../types/index.js'
 
 export class App {
   async start(): Promise<void> {
     const config = loadConfig()
+    await configureLogger({
+      level: config.LOG_LEVEL,
+      summaryPath: config.logSummaryPath,
+      detailPath: config.logDetailPath,
+    })
+    logger.info('App starting')
+    logger.debug('App config', {
+      dataPath: config.DATA_PATH,
+      profilePath: config.profilePath,
+      cronSchedule: config.CRON_SCHEDULE,
+      timezone: config.TZ ?? 'Asia/Shanghai',
+      logLevel: config.LOG_LEVEL,
+      logSummaryPath: config.logSummaryPath,
+      logDetailPath: config.logDetailPath,
+    })
     const profileRepository = new ProfileRepository(config.profilePath)
     const profilesFile = await profileRepository.load()
     const profiles = profilesFile.profiles
@@ -55,6 +71,15 @@ export class App {
         return { embeds }
       },
     })
+    if (config.DISCORD_WEBHOOK_URL) {
+      logger.info('Discord notifier configured', { mode: 'webhook' })
+    }
+    else if (config.DISCORD_BOT_TOKEN && config.DISCORD_CHANNEL_ID) {
+      logger.info('Discord notifier configured', { mode: 'bot' })
+    }
+    else {
+      logger.info('Discord notifier not configured')
+    }
 
     attendanceService = new AttendanceService({
       client: endfieldClient,
@@ -77,6 +102,7 @@ export class App {
     })
 
     await scheduler.start()
+    logger.info('App started')
   }
 }
 

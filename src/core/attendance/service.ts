@@ -32,7 +32,7 @@ function logStatus(label: string, status?: AttendanceStatus) {
     logger.warn('Attendance status unavailable', { profile: label, message: status.message })
     return
   }
-  logger.info('Attendance status', {
+  logger.debug('Attendance status', {
     profile: label,
     today: status.hasToday ?? 'unknown',
     done: status.doneCount ?? 'unknown',
@@ -72,6 +72,10 @@ export class AttendanceService {
     const today = getShanghaiDate()
     const results: RunResult[] = []
     const startedAt = new Date()
+    logger.info('Attendance run started', {
+      reason,
+      profiles: runProfiles.length,
+    })
 
     try {
       let index = 0
@@ -106,7 +110,7 @@ export class AttendanceService {
         logStatus(label, result.status)
 
         if (result.rewards && result.rewards.length > 0) {
-          logger.info('Attendance rewards', {
+          logger.debug('Attendance rewards', {
             profile: label,
             rewards: formatRewardsInline(result.rewards),
           })
@@ -125,6 +129,16 @@ export class AttendanceService {
       }
 
       await this.stateStore.save(this.state)
+      const okCount = results.filter(result => result.ok).length
+      const failedCount = results.length - okCount
+      const durationMs = Date.now() - startedAt.getTime()
+      logger.info('Attendance run completed', {
+        reason,
+        profiles: runProfiles.length,
+        ok: okCount,
+        failed: failedCount,
+        durationMs,
+      })
       return results
     }
     finally {

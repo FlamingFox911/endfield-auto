@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import { nowIso } from '../../utils/time.js'
+import { logger } from '../../utils/logger.js'
 
 const stateSchema = z.object({
   lastSuccessByProfile: z.record(z.string()).default({}),
@@ -22,21 +23,31 @@ export class StateStore {
     const statePath = path.join(this.dataPath, 'state.json')
     try {
       const raw = await fs.readFile(statePath, 'utf8')
-      return stateSchema.parse(JSON.parse(raw))
+      const parsed = stateSchema.parse(JSON.parse(raw))
+      logger.debug('State loaded', { path: statePath })
+      return parsed
     }
     catch {
+      logger.warn('State load failed; using defaults', { path: statePath })
       return stateSchema.parse({})
     }
   }
 
   async save(state: AppState): Promise<void> {
-    await fs.mkdir(this.dataPath, { recursive: true })
     const statePath = path.join(this.dataPath, 'state.json')
-    const nextState: AppState = {
-      lastRunAt: nowIso(),
-      lastRunByProfile: state.lastRunByProfile ?? {},
-      lastSuccessByProfile: state.lastSuccessByProfile ?? {},
+    try {
+      await fs.mkdir(this.dataPath, { recursive: true })
+      const nextState: AppState = {
+        lastRunAt: nowIso(),
+        lastRunByProfile: state.lastRunByProfile ?? {},
+        lastSuccessByProfile: state.lastSuccessByProfile ?? {},
+      }
+      await fs.writeFile(statePath, JSON.stringify(nextState, null, 2), 'utf8')
+      logger.debug('State saved', { path: statePath })
     }
-    await fs.writeFile(statePath, JSON.stringify(nextState, null, 2), 'utf8')
+    catch (error) {
+      logger.error('State save failed', { path: statePath, error })
+      throw error
+    }
   }
 }

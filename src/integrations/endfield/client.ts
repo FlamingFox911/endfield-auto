@@ -73,9 +73,27 @@ export class EndfieldClient implements AttendanceClient {
   async fetchStatus(profile: EndfieldProfile): Promise<AttendanceStatus> {
     const signHeaders = buildSignHeaders(profile, ATTENDANCE_URL, 'GET')
     const headers = buildHeaders(profile, signHeaders)
-    const response = await fetch(ATTENDANCE_URL, {
+    logger.debug('Endfield status request', {
       method: 'GET',
-      headers,
+      url: ATTENDANCE_URL,
+      profileId: profile.id,
+    })
+
+    let response: Response
+    try {
+      response = await fetch(ATTENDANCE_URL, {
+        method: 'GET',
+        headers,
+      })
+    }
+    catch (error) {
+      logger.error('Endfield status request failed', { profileId: profile.id, error })
+      throw error
+    }
+    logger.debug('Endfield status response', {
+      status: response.status,
+      ok: response.ok,
+      profileId: profile.id,
     })
 
     const text = await response.text()
@@ -88,14 +106,24 @@ export class EndfieldClient implements AttendanceClient {
     }
 
     if (!response.ok) {
+      logger.warn('Endfield status request returned error', {
+        status: response.status,
+        profileId: profile.id,
+      })
       return { ok: false, message: `HTTP ${response.status}` }
     }
 
     if (!payload) {
+      logger.warn('Endfield status response not JSON', { profileId: profile.id })
       return { ok: false, message: 'Invalid attendance response' }
     }
 
     if (payload.code !== 0) {
+      logger.warn('Endfield status returned non-zero code', {
+        profileId: profile.id,
+        code: payload.code,
+        message: payload.message,
+      })
       return { ok: false, message: payload.message ?? 'Attendance status failed' }
     }
 
@@ -135,10 +163,28 @@ export class EndfieldClient implements AttendanceClient {
     const signHeaders = buildSignHeaders(profile, ATTENDANCE_URL, 'POST', body)
     const headers = buildHeaders(profile, signHeaders)
 
-    const response = await fetch(ATTENDANCE_URL, {
+    logger.debug('Endfield attendance request', {
       method: 'POST',
-      headers,
-      body,
+      url: ATTENDANCE_URL,
+      profileId: profile.id,
+    })
+
+    let response: Response
+    try {
+      response = await fetch(ATTENDANCE_URL, {
+        method: 'POST',
+        headers,
+        body,
+      })
+    }
+    catch (error) {
+      logger.error('Endfield attendance request failed', { profileId: profile.id, error })
+      throw error
+    }
+    logger.debug('Endfield attendance response', {
+      status: response.status,
+      ok: response.ok,
+      profileId: profile.id,
     })
 
     const text = await response.text()
@@ -194,6 +240,12 @@ export class EndfieldClient implements AttendanceClient {
     const nextStatus = (already && status.ok)
       ? { ...status, hasToday: true, todayRewards: undefined }
       : status
+
+    logger.warn('Endfield attendance returned non-zero code', {
+      profileId: profile.id,
+      code,
+      message: msg,
+    })
 
     return {
       ok: false,

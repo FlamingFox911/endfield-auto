@@ -17,6 +17,9 @@ Copy `.env.example` to `.env`. Values are read from `.env` or container env.
 - `PROFILE_PATH` (optional; defaults to `.data/profiles.json`)
 - `DATA_PATH` (optional; defaults to `.data`)
 - `CRON_SCHEDULE` (default `0 2 * * *`, Asia/Shanghai)
+- `LOG_LEVEL` (optional; default `info`)
+- `LOG_SUMMARY_PATH` (optional; default `.data/logs/summary.log`)
+- `LOG_DETAIL_PATH` (optional; default `.data/logs/detail.log`)
 - `TZ` (optional timezone override for the cron schedule; default `Asia/Shanghai`)
 
 Discord options:
@@ -107,6 +110,7 @@ npm run dev
 - On startup, if the last successful check-in is before today (Asia/Shanghai), it runs immediately.
 - If credentials expire, check-ins will fail; Discord embeds (when enabled) are generic, so check logs for the specific error and refresh the cookie values.
 - If `DISCORD_WEBHOOK_URL` is set, notifications are sent through the webhook.
+- Terminal output mirrors the summary log; the detailed log includes full payloads and multi-line data for debugging.
 
 ## Credits
 Big thanks to [cptmacp](https://gist.github.com/cptmacp/70f66f2a4fb9d5fa708d33fbcc8e265a) for the logic, and to [torikushiii](https://github.com/torikushiii/hoyolab-auto) for the inspiration.

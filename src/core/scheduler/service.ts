@@ -29,6 +29,10 @@ export class SchedulerService {
   }
 
   async start(): Promise<void> {
+    logger.info('Scheduler starting', {
+      cronSchedule: this.cronSchedule,
+      timezone: this.timezone,
+    })
     const today = getShanghaiDate()
     const dueProfiles = this.profiles.filter(profile => {
       const lastSuccess = this.state.lastSuccessByProfile?.[profile.id]
@@ -39,10 +43,14 @@ export class SchedulerService {
       logger.info('Startup catch-up triggered', { profiles: dueProfiles.map(p => p.id) })
       await this.runNow('startup', dueProfiles)
     }
+    else {
+      logger.debug('Startup catch-up not needed')
+    }
 
     cron.schedule(this.cronSchedule, async () => {
       logger.info('Scheduled run triggered')
       await this.runNow('scheduled')
     }, { timezone: this.timezone })
+    logger.info('Scheduler started')
   }
 }

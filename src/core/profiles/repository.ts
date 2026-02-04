@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { z } from 'zod'
 import type { EndfieldProfile, ProfilesFile } from '../../types/index.js'
+import { logger } from '../../utils/logger.js'
 
 const profileSchema = z.object({
   id: z.string().min(1),
@@ -27,9 +28,20 @@ export class ProfileRepository {
   }
 
   async load(): Promise<ProfilesFile> {
-    const raw = await fs.readFile(this.profilePath, 'utf8')
-    const parsed = JSON.parse(raw)
-    return profilesFileSchema.parse(parsed) as ProfilesFile
+    try {
+      const raw = await fs.readFile(this.profilePath, 'utf8')
+      const parsed = JSON.parse(raw)
+      const profilesFile = profilesFileSchema.parse(parsed) as ProfilesFile
+      logger.debug('Profiles loaded', {
+        path: this.profilePath,
+        count: profilesFile.profiles.length,
+      })
+      return profilesFile
+    }
+    catch (error) {
+      logger.error('Failed to load profiles', { path: this.profilePath, error })
+      throw error
+    }
   }
 
   formatLabel(profile: EndfieldProfile, index?: number): string {

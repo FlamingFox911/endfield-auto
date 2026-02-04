@@ -86,7 +86,10 @@ export class DiscordNotifier implements Notifier {
     }
 
     if (payload.content) {
-      logger.info(payload.content)
+      logger.debug('Discord notification content', { content: payload.content })
+    }
+    if (payload.embeds) {
+      logger.debug('Discord notification embeds', { embeds: payload.embeds })
     }
   }
 }
