@@ -1,4 +1,4 @@
-import type { AttendanceReward, AttendanceStatus, EndfieldProfile, RunResult } from '../../types/index.js'
+import type { AttendanceResult, AttendanceReward, AttendanceStatus, EndfieldProfile, RunResult } from '../../types/index.js'
 import type { AttendanceClient, RunReason } from './types.js'
 import type { Notifier } from '../notifications/types.js'
 import type { AppState } from '../state/store.js'
@@ -12,6 +12,7 @@ export interface AttendanceServiceOptions {
   state: AppState
   stateStore: StateStore
   formatProfileLabel: (profile: EndfieldProfile, index?: number) => string
+  refreshTokenForProfile?: (profile: EndfieldProfile) => Promise<void>
   buildRunEmbed?: (result: RunResult, reason: RunReason, index: number, total: number, timestamp: Date) => unknown
   notifier?: Notifier
 }
@@ -41,12 +42,19 @@ function logStatus(label: string, status?: AttendanceStatus) {
   })
 }
 
+function shouldRetryAfterTokenRefresh(result: AttendanceResult): boolean {
+  if (result.ok || result.already) return false
+  const message = result.message.toLowerCase()
+  return message.includes('http 401') || message.includes('request exception')
+}
+
 export class AttendanceService {
   private readonly client: AttendanceClient
   private readonly profiles: EndfieldProfile[]
   private readonly state: AppState
   private readonly stateStore: StateStore
   private readonly formatProfileLabel: (profile: EndfieldProfile, index?: number) => string
+  private readonly refreshTokenForProfile?: (profile: EndfieldProfile) => Promise<void>
   private readonly buildRunEmbed?: (result: RunResult, reason: RunReason, index: number, total: number, timestamp: Date) => unknown
   private readonly notifier?: Notifier
   private inFlight = false
@@ -57,6 +65,7 @@ export class AttendanceService {
     this.state = options.state
     this.stateStore = options.stateStore
     this.formatProfileLabel = options.formatProfileLabel
+    this.refreshTokenForProfile = options.refreshTokenForProfile
     this.buildRunEmbed = options.buildRunEmbed
     this.notifier = options.notifier
   }
@@ -84,7 +93,24 @@ export class AttendanceService {
         const label = this.formatProfileLabel(profile, index)
         logger.info(`Running attendance for ${label} (${reason})`)
 
-        const result = await this.client.attend(profile)
+        let result = await this.client.attend(profile)
+        if (this.refreshTokenForProfile && shouldRetryAfterTokenRefresh(result)) {
+          logger.warn('Attendance check-in failed with auth error; refreshing sign token and retrying', {
+            profile: label,
+            message: result.message,
+          })
+          try {
+            await this.refreshTokenForProfile(profile)
+            result = await this.client.attend(profile)
+          }
+          catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            logger.warn('Attendance retry skipped; sign token refresh failed', {
+              profile: label,
+              error: message,
+            })
+          }
+        }
         const ok = result.ok || result.already === true
 
         if (!this.state.lastSuccessByProfile) this.state.lastSuccessByProfile = {}

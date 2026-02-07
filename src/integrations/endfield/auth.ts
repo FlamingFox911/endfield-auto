@@ -1,4 +1,5 @@
 import type { EndfieldProfile } from '../../types/index.js'
+import { buildSignHeaders } from './sign.js'
 
 const AUTH_REFRESH_URL = 'https://zonai.skport.com/web/v1/auth/refresh'
 const ORIGIN = 'https://game.skport.com'
@@ -39,13 +40,13 @@ function buildBaseHeaders(): Record<string, string> {
 
 export class EndfieldAuthClient {
   async refreshSignToken(profile: EndfieldProfile): Promise<AuthRefreshResult> {
+    const signHeaders = buildSignHeaders(profile, AUTH_REFRESH_URL, 'GET')
     const headers = {
       ...buildBaseHeaders(),
       'content-type': 'application/json',
       'sk-language': SK_LANGUAGE,
       cred: profile.cred,
-      platform: profile.platform,
-      vName: profile.vName,
+      ...signHeaders,
     }
 
     const response = await fetch(AUTH_REFRESH_URL, { method: 'GET', headers })

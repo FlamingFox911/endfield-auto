@@ -92,6 +92,9 @@ export class App {
       state,
       stateStore,
       formatProfileLabel: profileRepository.formatLabel.bind(profileRepository),
+      refreshTokenForProfile: async (profile) => {
+        await authService.refreshIfPossible([profile])
+      },
       buildRunEmbed,
       notifier,
     })
