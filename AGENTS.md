@@ -20,6 +20,10 @@ Build a Docker-deployable, statically-typed Endfield attendance automation servi
    - Store credentials securely (local file or env).
    - Refresh or re-auth automatically when possible; detect expiry and re-login.
    - Always consult current sources for the exact headers/flows.
+   - Treat attendance/status requests as signed skport requests:
+     - Send `cred`, `platform`, `vName`, `timestamp`, `sign` (+ `sk-game-role`).
+     - Build `sign` from request path/body + timestamp + `{platform,timestamp,dId,vName}` with key `signSecret || signToken`.
+     - Refresh `signToken` using `GET /web/v1/auth/refresh` (with `cred`, `platform`, `vName`) on startup and by scheduled refresh.
 
 2. Scheduling
    - Default daily cron (configurable).
@@ -40,6 +44,7 @@ Use .env (or environment variables) for:
 - PROFILE_PATH (optional; defaults to .data/profiles.json)
 - DATA_PATH (optional; defaults to .data)
 - CRON_SCHEDULE (default daily; Asia/Shanghai timezone)
+- TOKEN_REFRESH_CRON (default periodic refresh; Asia/Shanghai timezone)
 - DISCORD_BOT_TOKEN, DISCORD_APP_ID, DISCORD_GUILD_ID, DISCORD_CHANNEL_ID
 - DISCORD_WEBHOOK_URL (optional; notifications only)
 - TZ (optional timezone override; default Asia/Shanghai)

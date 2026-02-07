@@ -1,9 +1,11 @@
 import { loadConfig } from '../config/index.js'
 import { AttendanceService } from '../core/attendance/service.js'
+import { AuthService } from '../core/auth/service.js'
 import { SchedulerService } from '../core/scheduler/service.js'
 import { ProfileRepository } from '../core/profiles/repository.js'
 import { StateStore } from '../core/state/store.js'
 import { EndfieldClient } from '../integrations/endfield/client.js'
+import { EndfieldAuthClient } from '../integrations/endfield/auth.js'
 import { DiscordNotifier } from '../integrations/discord/notifier.js'
 import { buildRunEmbed, buildStatusEmbed } from '../integrations/discord/format.js'
 import { configureLogger, logger } from '../utils/logger.js'
@@ -22,6 +24,7 @@ export class App {
       dataPath: config.DATA_PATH,
       profilePath: config.profilePath,
       cronSchedule: config.CRON_SCHEDULE,
+      tokenRefreshCron: config.TOKEN_REFRESH_CRON,
       timezone: config.TZ ?? 'Asia/Shanghai',
       logLevel: config.LOG_LEVEL,
       logSummaryPath: config.logSummaryPath,
@@ -33,6 +36,12 @@ export class App {
     const stateStore = new StateStore(config.DATA_PATH)
     const state = await stateStore.load()
     const endfieldClient = new EndfieldClient()
+    const authService = new AuthService({
+      authClient: new EndfieldAuthClient(),
+      profileRepository,
+      profilesFile,
+      formatProfileLabel: profileRepository.formatLabel.bind(profileRepository),
+    })
 
     let attendanceService = new AttendanceService({
       client: endfieldClient,
@@ -93,12 +102,14 @@ export class App {
 
     const scheduler = new SchedulerService({
       cronSchedule: config.CRON_SCHEDULE,
+      tokenRefreshCron: config.TOKEN_REFRESH_CRON,
       timezone: config.TZ ?? 'Asia/Shanghai',
       profiles,
       state,
       runNow: async (reason, targetProfiles) => {
         await attendanceService.run(reason, targetProfiles)
       },
+      refreshTokens: async () => authService.refreshIfPossible(profiles),
     })
 
     await scheduler.start()

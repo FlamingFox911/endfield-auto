@@ -9,7 +9,6 @@ type SignInput = {
   platform: string
   vName: string
   deviceId?: string
-  key: string
 }
 
 function buildSignPayload(input: SignInput): string {
@@ -36,29 +35,6 @@ function buildSignPayload(input: SignInput): string {
   return source
 }
 
-export function computeSignHeader(profile: EndfieldProfile, url: string, method: string, body?: string): string | null {
-  const key = profile.signSecret || profile.signToken
-  if (!key) return null
-
-  const timestamp = Math.floor(Date.now() / 1000).toString()
-  const input: SignInput = {
-    url,
-    method,
-    body,
-    timestamp,
-    platform: profile.platform,
-    vName: profile.vName,
-    deviceId: profile.deviceId,
-    key,
-  }
-
-  const source = buildSignPayload(input)
-  const hmacHex = crypto.createHmac('sha256', input.key).update(source).digest('hex')
-  const sign = crypto.createHash('md5').update(hmacHex).digest('hex')
-
-  return sign
-}
-
 export function buildSignHeaders(profile: EndfieldProfile, url: string, method: string, body?: string): Record<string, string> {
   const timestamp = Math.floor(Date.now() / 1000).toString()
   const headers: Record<string, string> = {
@@ -81,7 +57,6 @@ export function buildSignHeaders(profile: EndfieldProfile, url: string, method: 
       platform: profile.platform,
       vName: profile.vName,
       deviceId: profile.deviceId,
-      key,
     })
     const hmacHex = crypto.createHmac('sha256', key).update(source).digest('hex')
     headers.sign = crypto.createHash('md5').update(hmacHex).digest('hex')

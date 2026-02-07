@@ -44,6 +44,12 @@ export class ProfileRepository {
     }
   }
 
+  async save(file: ProfilesFile): Promise<void> {
+    const parsed = profilesFileSchema.parse(file) as ProfilesFile
+    const payload = JSON.stringify(parsed, null, 2)
+    await fs.writeFile(this.profilePath, payload, 'utf8')
+  }
+
   formatLabel(profile: EndfieldProfile, index?: number): string {
     const name = profile.accountName?.trim()
     if (name) return name

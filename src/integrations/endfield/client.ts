@@ -159,14 +159,18 @@ export class EndfieldClient implements AttendanceClient {
       }
     }
 
-    const body = '{}'
-    const signHeaders = buildSignHeaders(profile, ATTENDANCE_URL, 'POST', body)
+    const signHeaders = buildSignHeaders(profile, ATTENDANCE_URL, 'POST')
     const headers = buildHeaders(profile, signHeaders)
 
     logger.debug('Endfield attendance request', {
       method: 'POST',
       url: ATTENDANCE_URL,
       profileId: profile.id,
+      timestamp: signHeaders.timestamp,
+      hasSign: Boolean(signHeaders.sign),
+      hasDeviceId: Boolean(signHeaders.dId),
+      vName: signHeaders.vName,
+      platform: signHeaders.platform,
     })
 
     let response: Response
@@ -174,7 +178,6 @@ export class EndfieldClient implements AttendanceClient {
       response = await fetch(ATTENDANCE_URL, {
         method: 'POST',
         headers,
-        body,
       })
     }
     catch (error) {
@@ -197,7 +200,14 @@ export class EndfieldClient implements AttendanceClient {
     }
 
     if (!response.ok) {
-      logger.warn('Attendance request failed', { status: response.status })
+      const preview = text.length > 400 ? `${text.slice(0, 400)}...` : text
+      logger.warn('Attendance request failed', {
+        status: response.status,
+        message: payload?.msg ?? payload?.message,
+        raw: preview || undefined,
+        serverTimestamp: payload?.timestamp,
+        code: payload?.code,
+      })
       return {
         ok: false,
         message: `HTTP ${response.status}: ${payload?.msg ?? payload?.message ?? 'Request failed'}`,

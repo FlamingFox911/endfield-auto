@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits } from 'discord.js'
+import { Client, GatewayIntentBits, MessageFlags } from 'discord.js'
 import type { APIEmbed } from 'discord.js'
 import { logger } from '../../utils/logger.js'
 import type { DiscordMessagePayload, DiscordStartOptions } from './types.js'
@@ -21,15 +21,26 @@ export async function startDiscordBot(options: DiscordStartOptions): Promise<Cli
     if (!interaction.isChatInputCommand()) return
 
     if (interaction.commandName === 'checkin') {
-      await interaction.deferReply({ ephemeral: true })
-      const payload = normalizePayload(await options.onCheckIn())
-      await interaction.editReply(payload)
+      try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+        const payload = normalizePayload(await options.onCheckIn())
+        await interaction.editReply(payload)
+      }
+      catch (error) {
+        logger.warn('Discord checkin command failed', { error: error instanceof Error ? error.message : String(error) })
+      }
       return
     }
 
     if (interaction.commandName === 'status') {
-      const payload = normalizePayload(await options.getStatus())
-      await interaction.reply({ ...payload, ephemeral: true })
+      try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+        const payload = normalizePayload(await options.getStatus())
+        await interaction.editReply(payload)
+      }
+      catch (error) {
+        logger.warn('Discord status command failed', { error: error instanceof Error ? error.message : String(error) })
+      }
     }
   })
 

@@ -18,6 +18,7 @@ const envSchema = z.object({
   DATA_PATH: z.string().default('.data'),
   PROFILE_PATH: optionalString,
   CRON_SCHEDULE: z.string().default('0 2 * * *'),
+  TOKEN_REFRESH_CRON: z.string().default('0 */6 * * *'),
   LOG_LEVEL: logLevelSchema,
   LOG_SUMMARY_PATH: optionalString,
   LOG_DETAIL_PATH: optionalString,
