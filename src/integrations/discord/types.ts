@@ -7,7 +7,6 @@ export type DiscordMessagePayload = string | {
 
 export interface DiscordStartOptions {
   token: string
-  channelId: string
   appId?: string
   guildId?: string
   onCheckIn: () => Promise<DiscordMessagePayload>

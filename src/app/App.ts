@@ -42,15 +42,7 @@ export class App {
       profilesFile,
       formatProfileLabel: profileRepository.formatLabel.bind(profileRepository),
     })
-
-    let attendanceService = new AttendanceService({
-      client: endfieldClient,
-      profiles,
-      state,
-      stateStore,
-      formatProfileLabel: profileRepository.formatLabel.bind(profileRepository),
-      buildRunEmbed,
-    })
+    let attendanceService: AttendanceService | null = null
 
     const notifier = await DiscordNotifier.create({
       botToken: config.DISCORD_BOT_TOKEN,
@@ -59,6 +51,10 @@ export class App {
       channelId: config.DISCORD_CHANNEL_ID,
       webhookUrl: config.DISCORD_WEBHOOK_URL,
       onCheckIn: async () => {
+        if (!attendanceService) {
+          logger.warn('Manual check-in requested before attendance service is ready')
+          return 'Attendance service is still starting. Please try again shortly.'
+        }
         const results = await attendanceService.run('manual')
         if (results.length === 0) {
           return 'Attendance run skipped; another run is in progress.'
@@ -107,6 +103,9 @@ export class App {
       profiles,
       state,
       runNow: async (reason, targetProfiles) => {
+        if (!attendanceService) {
+          throw new Error('Attendance service not initialized')
+        }
         await attendanceService.run(reason, targetProfiles)
       },
       refreshTokens: async () => authService.refreshIfPossible(profiles),

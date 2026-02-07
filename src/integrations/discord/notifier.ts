@@ -50,7 +50,6 @@ export class DiscordNotifier implements Notifier {
 
         notifier.client = await startDiscordBot({
           token: options.botToken,
-          channelId: options.channelId,
           appId: options.appId,
           guildId: options.guildId,
           onCheckIn: options.onCheckIn,

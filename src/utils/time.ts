@@ -7,10 +7,6 @@ export function getShanghaiDate(date: Date = new Date()): string {
   }).format(date)
 }
 
-export function nowIso(): string {
-  return new Date().toISOString()
-}
-
 export function getShanghaiDateFromUnixSeconds(seconds: string): string {
   const millis = Number(seconds) * 1000
   return getShanghaiDate(new Date(millis))

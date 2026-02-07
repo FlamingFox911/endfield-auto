@@ -1,13 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { nowIso } from '../../utils/time.js'
 import { logger } from '../../utils/logger.js'
 
 const stateSchema = z.object({
   lastSuccessByProfile: z.record(z.string()).default({}),
-  lastRunByProfile: z.record(z.string()).default({}),
-  lastRunAt: z.string().optional(),
 })
 
 export type AppState = z.infer<typeof stateSchema>
@@ -38,8 +35,6 @@ export class StateStore {
     try {
       await fs.mkdir(this.dataPath, { recursive: true })
       const nextState: AppState = {
-        lastRunAt: nowIso(),
-        lastRunByProfile: state.lastRunByProfile ?? {},
         lastSuccessByProfile: state.lastSuccessByProfile ?? {},
       }
       await fs.writeFile(statePath, JSON.stringify(nextState, null, 2), 'utf8')

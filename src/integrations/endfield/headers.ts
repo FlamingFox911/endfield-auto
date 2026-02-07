@@ -35,9 +35,5 @@ export function buildHeaders(profile: EndfieldProfile, signHeaders: Record<strin
     te: TE,
   }
 
-  if (!headers.sign && profile.sign) {
-    headers.sign = profile.sign
-  }
-
   return headers
 }

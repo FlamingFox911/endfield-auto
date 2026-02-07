@@ -10,7 +10,6 @@ const profileSchema = z.object({
   skGameRole: z.string().min(1),
   platform: z.string().min(1),
   vName: z.string().min(1),
-  sign: z.string().optional(),
   signToken: z.string().optional(),
   signSecret: z.string().optional(),
   deviceId: z.string().optional(),

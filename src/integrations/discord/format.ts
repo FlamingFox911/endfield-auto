@@ -45,13 +45,6 @@ function pickRewardIcon(rewards: AttendanceReward[] | undefined): string | undef
   return rewards?.find(reward => Boolean(reward.icon))?.icon
 }
 
-function formatTodayStatus(status?: AttendanceStatus): string {
-  if (!status) return 'Unknown'
-  if (status.hasToday === true) return 'Done'
-  if (status.hasToday === false) return 'Not done'
-  return 'Unknown'
-}
-
 function formatProgress(status?: AttendanceStatus): string {
   if (!status) return 'Unknown'
   if (typeof status.doneCount === 'number' && typeof status.totalCount === 'number') {
@@ -84,7 +77,7 @@ export function buildRunEmbed(result: RunResult, reason: RunReason, index: numbe
   const footer = `Endfield Auto Check-in (${index}/${total}) - ${formatReason(reason)}`
 
   const embed = new EmbedBuilder()
-    .setTitle('Endfield Attendence')
+    .setTitle('Endfield Attendance')
     .setAuthor(buildAuthor())
     .setColor(color)
     .addFields(
@@ -112,7 +105,7 @@ export function buildStatusEmbed(profileLabel: string, status: AttendanceStatus,
     : 'Status check failed, Endmin. Endfield systems report instability.'
 
   const embed = new EmbedBuilder()
-    .setTitle('Endfield Attendence')
+    .setTitle('Endfield Attendance')
     .setAuthor(buildAuthor())
     .setColor(color)
     .setTimestamp(timestamp)

@@ -87,10 +87,7 @@ export class AttendanceService {
         const result = await this.client.attend(profile)
         const ok = result.ok || result.already === true
 
-        if (!this.state.lastRunByProfile) this.state.lastRunByProfile = {}
         if (!this.state.lastSuccessByProfile) this.state.lastSuccessByProfile = {}
-
-        this.state.lastRunByProfile[profile.id] = today
         if (ok) {
           this.state.lastSuccessByProfile[profile.id] = today
         }

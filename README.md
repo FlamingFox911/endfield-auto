@@ -1,120 +1,114 @@
 # endfield-auto
 
-Automates Endfield daily attendance with a scheduled job and Discord notifications/commands.
+Automated Endfield attendance service with scheduled check-ins, startup catch-up, token refresh, and Discord integration.
 
-## Quick start
+## Features
+- Daily cron attendance runs (configurable).
+- Startup catch-up per profile when today's attendance is missing (Asia/Shanghai day boundary).
+- Signed skport attendance/status requests.
+- Automatic `signToken` refresh on startup and on schedule.
+- Discord slash commands: `/checkin`, `/status`.
+- Discord notifications via bot channel or webhook.
+- JSON-backed profile/state storage for Docker volume persistence.
+- Structured summary/detail logging with configurable log level and paths.
 
-1. Copy `.env.example` to `.env` and fill in Discord settings if you want notifications or commands.
-2. Create a profiles file at `.data/profiles.json` (or set `PROFILE_PATH`).
-3. Build and run with Docker, Docker Compose, or Node.
+## Architecture
+- `src/app`: bootstrap and dependency wiring.
+- `src/config`: env parsing and defaults.
+- `src/core/auth`: token refresh orchestration.
+- `src/core/attendance`: run orchestration and state updates.
+- `src/core/scheduler`: cron + startup catch-up.
+- `src/core/profiles`: profile schema/load/save.
+- `src/core/state`: persisted last-success map.
+- `src/integrations/endfield`: signed API client + auth refresh client.
+- `src/integrations/discord`: command registration, bot client, embeds, webhook sender.
+
+## Requirements
+- Node.js 22+
+- npm
+- Docker (optional)
 
 ## Configuration
 
-### Environment (.env)
+Copy `.env.example` to `.env` and edit values:
 
-Copy `.env.example` to `.env`. Values are read from `.env` or container env.
-
-- `PROFILE_PATH` (optional; defaults to `.data/profiles.json`)
-- `DATA_PATH` (optional; defaults to `.data`)
-- `CRON_SCHEDULE` (default `0 2 * * *`, Asia/Shanghai)
-- `TOKEN_REFRESH_CRON` (default `0 */6 * * *`, Asia/Shanghai)
-- `LOG_LEVEL` (optional; default `info`)
-- `LOG_SUMMARY_PATH` (optional; default `.data/logs/summary.log`)
-- `LOG_DETAIL_PATH` (optional; default `.data/logs/detail.log`)
-- `TZ` (optional timezone override for the cron schedule; default `Asia/Shanghai`)
+- `PROFILE_PATH` (optional; default `.data/profiles.json`)
+- `DATA_PATH` (optional; default `.data`)
+- `CRON_SCHEDULE` (default `0 2 * * *`)
+- `TOKEN_REFRESH_CRON` (default `0 */6 * * *`)
+- `LOG_LEVEL` (`debug|info|warn|error`, default `info`)
+- `LOG_SUMMARY_PATH` (default `.data/logs/summary.log`)
+- `LOG_DETAIL_PATH` (default `.data/logs/detail.log`)
 - `DISCORD_BOT_TOKEN` (optional; required for slash commands)
-- `DISCORD_APP_ID` (optional; required for slash commands)
-- `DISCORD_GUILD_ID` (optional; required for slash commands)
+- `DISCORD_APP_ID` (optional; required for slash command registration)
+- `DISCORD_GUILD_ID` (optional; required for slash command registration)
 - `DISCORD_CHANNEL_ID` (optional; required for bot channel notifications)
-- `DISCORD_WEBHOOK_URL` (optional; webhook notifications)
+- `DISCORD_WEBHOOK_URL` (optional; notifications only)
+- `TZ` (optional schedule timezone override; default `Asia/Shanghai`)
 
-Discord options:
-- **Webhook only (notifications only):** set `DISCORD_WEBHOOK_URL` and skip the bot fields.
-- **Bot + slash commands:** set all of `DISCORD_BOT_TOKEN`, `DISCORD_APP_ID`, `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_ID`.
-- **No Discord integration:** leave all Discord env vars empty.
-- If both webhook and bot are configured, notifications are sent via the webhook; the bot still handles slash commands.
+Discord modes:
+- Webhook-only notifications: set `DISCORD_WEBHOOK_URL`.
+- Bot + slash commands: set `DISCORD_BOT_TOKEN`, `DISCORD_APP_ID`, `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_ID`.
+- If both are set, notifications go to webhook while slash commands still run through the bot.
 
-## Profiles file
+## Profile file
 
-Create `.data/profiles.json` with one or more profiles:
+Create `.data/profiles.json` (or custom `PROFILE_PATH`):
 
 ```json
 {
   "profiles": [
     {
       "id": "main",
-      "accountName": "YourLabel",
+      "accountName": "MyAccount",
       "cred": "<SK_OAUTH_CRED_KEY cookie value>",
-      "skGameRole": "<sk-game-role header>",
+      "skGameRole": "<sk-game-role header value>",
       "platform": "3",
       "vName": "1.0.0",
-      "signToken": "<SK_TOKEN_CACHE_KEY localStorage value>",
-      "signSecret": "<optional override key>",
-      "deviceId": "<optional device id localStorage value>"
+      "signToken": "<optional SK_TOKEN_CACHE_KEY>",
+      "signSecret": "<optional signing secret override>",
+      "deviceId": "<optional device id>"
     }
   ]
 }
 ```
 
-This project does **not** store passwords. The values are captured from the Endfield sign-in page (network request + storage).
-
-### How to capture profile values
-
-1. Open the Endfield sign-in page and log in.
-2. Open DevTools -> Network.
-3. Find a request to `https://zonai.skport.com/web/v1/game/endfield/attendance` (GET or POST).
-4. In **Request Headers**, copy:
-   - `cred` -> `cred`
-   - `sk-game-role` -> `skGameRole`
-   - `platform` -> `platform`
-   - `vName` -> `vName`
-5. In DevTools -> Application/Storage -> Local Storage for `game.skport.com`, copy:
-   - `SK_TOKEN_CACHE_KEY` -> `signToken`
-   - `#eventLogDeviceId` or `#deviceIDS` -> `deviceId` (optional)
+How to capture values:
+1. Log in on the Endfield web page.
+2. In DevTools Network, inspect a request to `https://zonai.skport.com/web/v1/game/endfield/attendance`.
+3. Copy request headers:
+- `cred` -> `cred`
+- `sk-game-role` -> `skGameRole`
+- `platform` -> `platform`
+- `vName` -> `vName`
+4. In DevTools Storage (for `game.skport.com`), copy:
+- `SK_TOKEN_CACHE_KEY` -> `signToken` (optional but recommended)
+- `#eventLogDeviceId` / `#deviceIDS` -> `deviceId` (optional)
 
 Notes:
-- You do **not** need to save `timestamp` or `sign`. The service computes them.
-- `signSecret` is optional; if present it takes precedence over `signToken`.
-- The `sk-game-role` value is easiest to copy directly from the attendance request headers.
-- The service refreshes `signToken` on startup and on `TOKEN_REFRESH_CRON` via `GET /web/v1/auth/refresh`.
+- The app computes runtime `timestamp` and `sign` automatically.
+- Signing key priority is `signSecret || signToken`.
+- If `signToken` is missing, startup refresh attempts to fetch one via `/web/v1/auth/refresh`.
+- No passwords are stored.
 
-## Automatic signToken refresh
+## Run locally
 
-Every attendance/status request must be signed. Runtime headers are:
-- `cred`
-- `sk-game-role`
-- `platform`
-- `vName`
-- `timestamp`
-- `sign`
+```bash
+npm install
+npm run dev
+```
 
-`sign` is generated from request path/body + timestamp + `{platform,timestamp,dId,vName}` using:
-- `key = signSecret || signToken`
-- `sha256_hmac(key, source)` then `md5` of that hash
+Production-style local run:
 
-The service refreshes `signToken` with `GET /web/v1/auth/refresh`:
-- Trigger 1: app startup (before catch-up attendance)
-- Trigger 2: `TOKEN_REFRESH_CRON` schedule
-- Refresh request headers: `cred`, `platform`, `vName` (no `sign` required)
-
-Notes:
-- This does **not** store your password.
-- If token refresh fails, the app keeps using the stored key.
-
-## Project structure (src)
-
-- `src/app/`: entrypoint and app wiring (`main.ts`, `App.ts`)
-- `src/core/`: services (attendance, scheduler, state, profiles)
-- `src/integrations/`: Endfield and Discord clients/formatters
-- `src/utils/`, `src/types/`: shared helpers and types
+```bash
+npm run build
+npm start
+```
 
 ## Docker
 
 ```bash
 docker build -t endfield-auto .
-```
-
-```bash
 docker run --name endfield-auto --restart unless-stopped \
   --env-file .env \
   -v $(pwd)/.data:/app/.data \
@@ -127,19 +121,26 @@ docker run --name endfield-auto --restart unless-stopped \
 docker compose up -d --build
 ```
 
-## Development
+## Runtime behavior
+- Startup sequence: load config/profiles/state, refresh sign tokens, run catch-up for profiles that have not succeeded today (Asia/Shanghai), then start attendance and token-refresh crons.
+- Scheduled attendance runs send per-profile Discord notifications (if configured).
+- Manual `/checkin` returns command response embeds and does not double-send scheduled notifications.
 
-```bash
-npm install
-npm run dev
-```
+## Data and logs
+- `.data/profiles.json`: profile credentials/headers.
+- `.data/state.json`: last successful day by profile.
+- `.data/logs/summary.log`: concise operational log.
+- `.data/logs/detail.log`: full structured detail log.
 
-## Notes
-- Cron uses Asia/Shanghai by default (or `TZ` if provided); date comparisons for "today" always use Asia/Shanghai.
-- On startup, if the last successful check-in is before today (Asia/Shanghai), it runs immediately.
-- If credentials expire, check-ins will fail; Discord embeds (when enabled) are generic, so check logs for the specific error and refresh profile values.
-- If `DISCORD_WEBHOOK_URL` is set, notifications are sent through the webhook.
-- Terminal output mirrors the summary log; the detailed log includes full payloads and multi-line data for debugging.
+## Troubleshooting
+- `Auth refresh HTTP ...` or `Auth refresh error ...`: credentials (`cred/platform/vName`) likely expired or invalid.
+- Attendance HTTP failure/non-zero code: verify `cred`, `sk-game-role`, signing inputs, and timezone assumptions.
+- Slash commands not visible: ensure `DISCORD_APP_ID` + `DISCORD_GUILD_ID` are set and bot has guild permissions.
+- No notifications in bot mode: ensure `DISCORD_CHANNEL_ID` points to a text channel the bot can send to.
+
+## Security
+- Never commit `.env`, `.data/profiles.json`, or logs with secrets.
+- Rotate compromised credentials/tokens immediately.
 
 ## Credits
-Big thanks to [cptmacp](https://gist.github.com/cptmacp/70f66f2a4fb9d5fa708d33fbcc8e265a) for the logic, and to [torikushiii](https://github.com/torikushiii/hoyolab-auto) for the inspiration.
+Thanks to [cptmacp](https://gist.github.com/cptmacp/70f66f2a4fb9d5fa708d33fbcc8e265a) for core reverse-engineering and [torikushiii](https://github.com/torikushiii/hoyolab-auto) for project inspiration.

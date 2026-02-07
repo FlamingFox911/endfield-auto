@@ -1,65 +1,35 @@
-﻿# Agent Instructions (endfield-auto)
+# Agent Instructions (endfield-auto)
 
-## Project Goal
-Build a Docker-deployable, statically-typed Endfield attendance automation service with:
-- Reliable credential acquisition/refresh (first-time manual setup allowed, then hands-off).
-- Daily cron schedule with catch-up on startup if missed.
-- Discord notifications + a command to trigger manual check-in.
+## Objective
+Maintain a reliable, Docker-friendly, statically typed attendance automation service for Endfield with scheduled execution, credential lifecycle handling, and optional external integrations.
 
-## Tech Stack
-- Language: TypeScript (Node.js 22+).
-- Runtime: Node.js, Docker.
-- Scheduler: cron (node-cron or similar) + missed-run logic.
-- Discord: discord.js or a webhook + slash command (prefer slash command).
-- HTTP: undici or node-fetch.
-- Storage: local file (JSON) with optional env-based override; persist in Docker volume.
+## Operating Guardrails
+- Keep implementation modular, readable, and easy to test.
+- Preserve existing behavior unless a change is explicitly requested or clearly fixes a defect.
+- Favor configuration-driven behavior over hard-coded assumptions.
+- Use strong logging and explicit error handling; avoid silent failures.
+- Keep documentation aligned with actual runtime behavior.
 
-## Required Behavior
-1. Credentials
-   - Use the Endfield web flow to obtain required tokens/headers.
-   - Store credentials securely (local file or env).
-   - Refresh or re-auth automatically when possible; detect expiry and re-login.
-   - Always consult current sources for the exact headers/flows.
-   - Treat attendance/status requests as signed skport requests:
-     - Send `cred`, `platform`, `vName`, `timestamp`, `sign` (+ `sk-game-role`).
-     - Build `sign` from request path/body + timestamp + `{platform,timestamp,dId,vName}` with key `signSecret || signToken`.
-     - Refresh `signToken` using `GET /web/v1/auth/refresh` (with `cred`, `platform`, `vName`) on startup and by scheduled refresh.
+## Integration Guardrails
+- Treat external platform/API behavior as mutable; verify current behavior when uncertain.
+- Prefer robust request/response handling and safe retry/refresh patterns where appropriate.
+- Keep integrations operationally clear for both automated notifications and manual triggers.
+- Maintain startup/scheduled flow reliability and timezone-aware date handling.
+- Keep user-facing integration outputs concise, friendly, and in-universe/flavorful where applicable.
+- Keep terminal output and logs administrative and diagnostic-friendly, with actionable technical detail.
 
-2. Scheduling
-   - Default daily cron (configurable).
-   - On startup, if the last successful check-in is before today (Asia/Shanghai), run immediately.
+## Data and Security Guardrails
+- Never commit secrets or sensitive user data.
+- Do not require storing user passwords.
+- Persist operational data in `DATA_PATH` for container-friendly durability.
+- Captured live-site artifacts are stored under `DATA_PATH/test_data` (HAR files, cookies/local storage exports, saved JavaScript files).
+- Treat these artifacts as sensitive reference data and avoid exposing raw values in logs/docs.
 
-3. Discord Integration
-   - Send success/failure messages to a Discord channel.
-   - Support a command (slash or message command) to trigger a check-in on demand.
-
-4. Docker
-   - Provide Dockerfile + docker-compose.yml with a persistent volume.
-   - Container should start the scheduler automatically.
-
-
-## Configuration
-Use .env (or environment variables) for:
-- Do NOT store passwords. Avoid any config that requires a password.
-- PROFILE_PATH (optional; defaults to .data/profiles.json)
-- DATA_PATH (optional; defaults to .data)
-- CRON_SCHEDULE (default daily; Asia/Shanghai timezone)
-- TOKEN_REFRESH_CRON (default periodic refresh; Asia/Shanghai timezone)
-- DISCORD_BOT_TOKEN, DISCORD_APP_ID, DISCORD_GUILD_ID, DISCORD_CHANNEL_ID
-- DISCORD_WEBHOOK_URL (optional; notifications only)
-- TZ (optional timezone override; default Asia/Shanghai)
-
-## Engineering Notes
-- Prefer small, testable modules: auth, attendance, scheduler, discord, storage.
-- Favor modular, object-oriented design where appropriate: isolate responsibilities into classes/services and define clear interfaces.
-- Add robust logging and error handling; never silently fail.
-- Avoid hard-coded constants; centralize in config.
-- Never commit sensitive user data. Data regarding general calls is acceptible.
-- Keep front-facing integrations (Discord/webhook messages) in-universe; keep backend terminal logs descriptive for administrators.
+## Configuration Guardrails
+- Use `.env`/environment variables as the primary configuration surface.
+- Keep optional integrations optional and fail-soft when not configured.
+- Ensure sensible defaults exist for local and Docker execution.
 
 ## When Unsure
-- If API endpoints or headers are unclear, verify via current sources before coding.
-- If you can’t confirm a flow, ask the user before implementing guesses.
-
-
-
+- Check repository context first, then verify uncertain external behavior.
+- Ask for user confirmation before implementing speculative or high-impact changes.
