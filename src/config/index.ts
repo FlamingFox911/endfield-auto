@@ -31,6 +31,15 @@ const integerSchema = (defaultValue: number, minValue: number) => z.preprocess((
   return value
 }, z.number().int().min(minValue).default(defaultValue))
 
+const optionalIntegerSchema = (minValue: number) => z.preprocess((value) => {
+  if (typeof value === 'string') {
+    if (value.trim().length === 0) return undefined
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : value
+  }
+  return value
+}, z.number().int().min(minValue).optional())
+
 const logLevelSchema = z.preprocess((value) => {
   if (typeof value === 'string') return value.toLowerCase()
   return value
@@ -57,6 +66,12 @@ const envSchema = z.object({
   DISCORD_GUILD_ID: optionalString,
   DISCORD_CHANNEL_ID: optionalString,
   DISCORD_WEBHOOK_URL: optionalString,
+  TELEGRAM_BOT_TOKEN: optionalString,
+  TELEGRAM_CHAT_ID: optionalString,
+  TELEGRAM_ALLOWED_CHAT_IDS: optionalString,
+  TELEGRAM_THREAD_ID: optionalIntegerSchema(1),
+  TELEGRAM_POLLING_ENABLED: boolSchema(true),
+  TELEGRAM_DISABLE_NOTIFICATION: boolSchema(false),
   TZ: optionalString,
 })
 
@@ -65,6 +80,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
   logSummaryPath: string
   logDetailPath: string
   codeWatchSourceIds: string[]
+  telegramAllowedChatIds: string[]
 }
 
 export function loadConfig(): AppConfig {
@@ -93,11 +109,25 @@ export function loadConfig(): AppConfig {
     codeWatchSourceIds.push(...DEFAULT_CODE_WATCH_SOURCES.split(','))
   }
 
+  const telegramAllowedChatIds = Array.from(
+    new Set(
+      (parsed.TELEGRAM_ALLOWED_CHAT_IDS ?? '')
+        .split(',')
+        .map(value => value.trim())
+        .filter(value => value.length > 0),
+    ),
+  )
+  const telegramChatId = parsed.TELEGRAM_CHAT_ID?.trim()
+  if (telegramAllowedChatIds.length === 0 && telegramChatId) {
+    telegramAllowedChatIds.push(telegramChatId)
+  }
+
   return {
     ...parsed,
     profilePath,
     logSummaryPath,
     logDetailPath,
     codeWatchSourceIds,
+    telegramAllowedChatIds,
   }
 }

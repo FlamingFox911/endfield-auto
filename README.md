@@ -1,6 +1,6 @@
 # endfield-auto
 
-Automated Endfield attendance service with scheduled check-ins, startup catch-up, token refresh, Discord integration, and redeem-code watch.
+Automated Endfield attendance service with scheduled check-ins, startup catch-up, token refresh, Discord/Telegram integration, and redeem-code watch.
 
 ## Features
 - Daily cron attendance runs (configurable).
@@ -9,7 +9,9 @@ Automated Endfield attendance service with scheduled check-ins, startup catch-up
 - Automatic `signToken` refresh on startup and on schedule.
 - Optional code watch with source throttling, conditional fetch, and lease-based active/passive mode.
 - Discord slash commands: `/checkin`, `/status` (plus `/codes` with optional source filter, and `/codescheck` when code watch is enabled).
+- Telegram bot commands: `/checkin`, `/status` (plus `/codes` with optional source filter, and `/codescheck` when code watch is enabled).
 - Discord notifications via bot channel or webhook.
+- Telegram notifications via bot API chat delivery.
 - JSON-backed profile/state storage for Docker volume persistence.
 - Structured summary/detail logging with configurable log level and paths.
 
@@ -25,6 +27,7 @@ Automated Endfield attendance service with scheduled check-ins, startup catch-up
 - `src/integrations/codes`: source adapters (currently `game8`, `destructoid`, `pocket_tactics`).
 - `src/integrations/endfield`: signed API client + auth refresh client.
 - `src/integrations/discord`: command registration, bot client, embeds, webhook sender.
+- `src/integrations/telegram`: bot polling loop, command handling, payload formatter, and sender.
 
 ## Requirements
 - Node.js 22+
@@ -55,12 +58,23 @@ Copy `.env.example` to `.env` and edit values:
 - `DISCORD_GUILD_ID` (optional; required for slash command registration)
 - `DISCORD_CHANNEL_ID` (optional; required for bot channel notifications)
 - `DISCORD_WEBHOOK_URL` (optional; notifications only)
+- `TELEGRAM_BOT_TOKEN` (optional; required for Telegram commands/notifications)
+- `TELEGRAM_CHAT_ID` (optional; required for Telegram notifications)
+- `TELEGRAM_ALLOWED_CHAT_IDS` (optional comma list; command allowlist; defaults to `TELEGRAM_CHAT_ID`)
+- `TELEGRAM_THREAD_ID` (optional; Telegram forum topic thread id for notifications)
+- `TELEGRAM_POLLING_ENABLED` (`true|false`, default `true`)
+- `TELEGRAM_DISABLE_NOTIFICATION` (`true|false`, default `false`)
 - `TZ` (optional schedule timezone override; default `Asia/Shanghai`)
 
 Discord modes:
 - Webhook-only notifications: set `DISCORD_WEBHOOK_URL`.
 - Bot + slash commands: set `DISCORD_BOT_TOKEN`, `DISCORD_APP_ID`, `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_ID`.
 - If both are set, notifications go to webhook while slash commands still run through the bot.
+
+Telegram modes:
+- Commands + notifications: set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
+- Commands-only: set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS`, and `TELEGRAM_DISABLE_NOTIFICATION=true`.
+- Notifications-only: set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `TELEGRAM_POLLING_ENABLED=false`.
 
 Code watch mode:
 - `active`: polls external sources, updates `.data/codes.json`, and sends code notifications.
@@ -144,10 +158,11 @@ docker compose up -d --build
 
 ## Runtime behavior
 - Startup sequence: load config/profiles/state, refresh sign tokens, run catch-up for profiles that have not succeeded today (Asia/Shanghai), optional startup code scan (active mode), then start attendance/token-refresh/code-watch crons.
-- Scheduled attendance runs send per-profile Discord notifications (if configured).
-- Manual `/checkin` returns command response embeds and does not double-send scheduled notifications.
+- Scheduled attendance runs send per-profile Discord/Telegram notifications (if configured).
+- Manual `/checkin` (Discord slash command or Telegram bot command) returns command response embeds/messages and does not double-send scheduled notifications.
 - Scheduled code-watch runs scan configured sources with source-level interval limits, conditional requests (`If-None-Match` / `If-Modified-Since`), and backoff.
 - Code notifications are sent only once per code when confidence is sufficient (official/curated source, or cross-source confirmation).
+- Telegram output is optimized for plain chat readability (compact sections and localized time formatting) and may not mirror Discord embed layout exactly.
 
 ## Data and logs
 - `.data/profiles.json`: profile credentials/headers.
@@ -162,6 +177,8 @@ docker compose up -d --build
 - Attendance HTTP failure/non-zero code: verify `cred`, `sk-game-role`, signing inputs, and timezone assumptions.
 - Slash commands not visible: ensure `DISCORD_APP_ID` + `DISCORD_GUILD_ID` are set and bot has guild permissions.
 - No notifications in bot mode: ensure `DISCORD_CHANNEL_ID` points to a text channel the bot can send to.
+- Telegram commands not responding: ensure `TELEGRAM_POLLING_ENABLED=true`, the bot is started, and the chat ID is in `TELEGRAM_ALLOWED_CHAT_IDS` (or `TELEGRAM_CHAT_ID` fallback).
+- Telegram send failures/rate limits: confirm bot can post to the target chat/topic and reduce notification burst frequency if Telegram returns `retry_after`.
 - Code watch idle in multi-instance deployment: confirm exactly one instance runs `CODE_WATCH_MODE=active`.
 - Code watch sees no updates: verify source accessibility from your environment and tune `CODE_WATCH_SOURCES` / `CODE_WATCH_CRON`.
 
