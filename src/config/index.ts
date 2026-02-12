@@ -4,10 +4,32 @@ import { z } from 'zod'
 
 dotenv.config()
 
+const DEFAULT_CODE_WATCH_SOURCES = 'game8,destructoid,pocket_tactics'
+
 const optionalString = z.preprocess((value) => {
   if (typeof value === 'string' && value.trim().length === 0) return undefined
   return value
 }, z.string().optional())
+
+const boolSchema = (defaultValue: boolean) => z.preprocess((value) => {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === '') return undefined
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false
+  }
+  return value
+}, z.boolean().default(defaultValue))
+
+const integerSchema = (defaultValue: number, minValue: number) => z.preprocess((value) => {
+  if (typeof value === 'string') {
+    if (value.trim().length === 0) return undefined
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : value
+  }
+  return value
+}, z.number().int().min(minValue).default(defaultValue))
 
 const logLevelSchema = z.preprocess((value) => {
   if (typeof value === 'string') return value.toLowerCase()
@@ -19,6 +41,14 @@ const envSchema = z.object({
   PROFILE_PATH: optionalString,
   CRON_SCHEDULE: z.string().default('0 2 * * *'),
   TOKEN_REFRESH_CRON: z.string().default('0 */6 * * *'),
+  CODE_WATCH_ENABLED: boolSchema(false),
+  CODE_WATCH_MODE: z.enum(['active', 'passive']).default('active'),
+  CODE_WATCH_CRON: z.string().default('*/45 * * * *'),
+  CODE_WATCH_STARTUP_SCAN: boolSchema(true),
+  CODE_WATCH_SOURCES: z.string().default(DEFAULT_CODE_WATCH_SOURCES),
+  CODE_WATCH_HTTP_TIMEOUT_MS: integerSchema(10000, 1000),
+  CODE_WATCH_LEASE_SECONDS: integerSchema(120, 30),
+  CODE_WATCH_MAX_REQUESTS_PER_HOUR: integerSchema(12, 1),
   LOG_LEVEL: logLevelSchema,
   LOG_SUMMARY_PATH: optionalString,
   LOG_DETAIL_PATH: optionalString,
@@ -34,6 +64,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
   profilePath: string
   logSummaryPath: string
   logDetailPath: string
+  codeWatchSourceIds: string[]
 }
 
 export function loadConfig(): AppConfig {
@@ -49,11 +80,24 @@ export function loadConfig(): AppConfig {
   const logDetailPath = parsed.LOG_DETAIL_PATH
     ? parsed.LOG_DETAIL_PATH
     : path.join(logsPath, 'detail.log')
+  const codeWatchSourceIds = Array.from(
+    new Set(
+      parsed.CODE_WATCH_SOURCES
+        .split(',')
+        .map(value => value.trim())
+        .filter(value => value.length > 0),
+    ),
+  )
+
+  if (codeWatchSourceIds.length === 0) {
+    codeWatchSourceIds.push(...DEFAULT_CODE_WATCH_SOURCES.split(','))
+  }
 
   return {
     ...parsed,
     profilePath,
     logSummaryPath,
     logDetailPath,
+    codeWatchSourceIds,
   }
 }

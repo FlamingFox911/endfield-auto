@@ -11,4 +11,6 @@ export interface DiscordStartOptions {
   guildId?: string
   onCheckIn: () => Promise<DiscordMessagePayload>
   getStatus: () => Promise<DiscordMessagePayload>
+  getCodes?: (sourceId?: string) => Promise<DiscordMessagePayload>
+  runCodesCheck?: () => Promise<DiscordMessagePayload>
 }

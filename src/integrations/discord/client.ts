@@ -10,6 +10,10 @@ function normalizePayload(payload: DiscordMessagePayload): { content?: string; e
   return payload
 }
 
+function unavailableMessage(commandName: string): { content: string } {
+  return { content: `${commandName} is not configured on this instance.` }
+}
+
 export async function startDiscordBot(options: DiscordStartOptions): Promise<Client> {
   const client = new Client({ intents: [GatewayIntentBits.Guilds] })
 
@@ -40,6 +44,39 @@ export async function startDiscordBot(options: DiscordStartOptions): Promise<Cli
       }
       catch (error) {
         logger.warn('Discord status command failed', { error: error instanceof Error ? error.message : String(error) })
+      }
+      return
+    }
+
+    if (interaction.commandName === 'codes') {
+      try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+        if (!options.getCodes) {
+          await interaction.editReply(unavailableMessage('/codes'))
+          return
+        }
+        const sourceId = interaction.options.getString('source') ?? undefined
+        const payload = normalizePayload(await options.getCodes(sourceId))
+        await interaction.editReply(payload)
+      }
+      catch (error) {
+        logger.warn('Discord codes command failed', { error: error instanceof Error ? error.message : String(error) })
+      }
+      return
+    }
+
+    if (interaction.commandName === 'codescheck') {
+      try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+        if (!options.runCodesCheck) {
+          await interaction.editReply(unavailableMessage('/codescheck'))
+          return
+        }
+        const payload = normalizePayload(await options.runCodesCheck())
+        await interaction.editReply(payload)
+      }
+      catch (error) {
+        logger.warn('Discord codescheck command failed', { error: error instanceof Error ? error.message : String(error) })
       }
     }
   })

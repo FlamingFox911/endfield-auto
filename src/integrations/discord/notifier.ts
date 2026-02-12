@@ -12,8 +12,11 @@ export interface DiscordNotifierOptions {
   guildId?: string
   channelId?: string
   webhookUrl?: string
+  codeSources?: Array<{ id: string; name: string }>
   onCheckIn?: DiscordStartOptions['onCheckIn']
   getStatus?: DiscordStartOptions['getStatus']
+  getCodes?: DiscordStartOptions['getCodes']
+  runCodesCheck?: DiscordStartOptions['runCodesCheck']
 }
 
 type DiscordMessageBody = Exclude<DiscordMessagePayload, string>
@@ -45,7 +48,10 @@ export class DiscordNotifier implements Notifier {
     if (options.botToken && options.channelId) {
       if (options.onCheckIn && options.getStatus) {
         if (options.appId && options.guildId) {
-          await registerCommands(options.botToken, options.appId, options.guildId)
+          await registerCommands(options.botToken, options.appId, options.guildId, {
+            includeCodeCommands: Boolean(options.getCodes && options.runCodesCheck),
+            codeSourceChoices: options.codeSources,
+          })
         }
 
         notifier.client = await startDiscordBot({
@@ -54,6 +60,8 @@ export class DiscordNotifier implements Notifier {
           guildId: options.guildId,
           onCheckIn: options.onCheckIn,
           getStatus: options.getStatus,
+          getCodes: options.getCodes,
+          runCodesCheck: options.runCodesCheck,
         })
       }
       else {

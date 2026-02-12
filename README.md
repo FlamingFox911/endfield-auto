@@ -1,13 +1,14 @@
 # endfield-auto
 
-Automated Endfield attendance service with scheduled check-ins, startup catch-up, token refresh, and Discord integration.
+Automated Endfield attendance service with scheduled check-ins, startup catch-up, token refresh, Discord integration, and redeem-code watch.
 
 ## Features
 - Daily cron attendance runs (configurable).
 - Startup catch-up per profile when today's attendance is missing (Asia/Shanghai day boundary).
 - Signed skport attendance/status requests.
 - Automatic `signToken` refresh on startup and on schedule.
-- Discord slash commands: `/checkin`, `/status`.
+- Optional code watch with source throttling, conditional fetch, and lease-based active/passive mode.
+- Discord slash commands: `/checkin`, `/status` (plus `/codes` with optional source filter, and `/codescheck` when code watch is enabled).
 - Discord notifications via bot channel or webhook.
 - JSON-backed profile/state storage for Docker volume persistence.
 - Structured summary/detail logging with configurable log level and paths.
@@ -17,9 +18,11 @@ Automated Endfield attendance service with scheduled check-ins, startup catch-up
 - `src/config`: env parsing and defaults.
 - `src/core/auth`: token refresh orchestration.
 - `src/core/attendance`: run orchestration and state updates.
+- `src/core/codes`: code-watch orchestration, dedupe, notification gating, and persistence.
 - `src/core/scheduler`: cron + startup catch-up.
 - `src/core/profiles`: profile schema/load/save.
 - `src/core/state`: persisted last-success map.
+- `src/integrations/codes`: source adapters (currently `game8`, `destructoid`, `pocket_tactics`).
 - `src/integrations/endfield`: signed API client + auth refresh client.
 - `src/integrations/discord`: command registration, bot client, embeds, webhook sender.
 
@@ -36,6 +39,14 @@ Copy `.env.example` to `.env` and edit values:
 - `DATA_PATH` (optional; default `.data`)
 - `CRON_SCHEDULE` (default `0 2 * * *`)
 - `TOKEN_REFRESH_CRON` (default `0 */6 * * *`)
+- `CODE_WATCH_ENABLED` (`true|false`, default `false`)
+- `CODE_WATCH_MODE` (`active|passive`, default `active`)
+- `CODE_WATCH_CRON` (default `*/45 * * * *`)
+- `CODE_WATCH_STARTUP_SCAN` (`true|false`, default `true`)
+- `CODE_WATCH_SOURCES` (comma list, default `game8,destructoid,pocket_tactics`)
+- `CODE_WATCH_HTTP_TIMEOUT_MS` (default `10000`)
+- `CODE_WATCH_LEASE_SECONDS` (default `120`)
+- `CODE_WATCH_MAX_REQUESTS_PER_HOUR` (default `12`)
 - `LOG_LEVEL` (`debug|info|warn|error`, default `info`)
 - `LOG_SUMMARY_PATH` (default `.data/logs/summary.log`)
 - `LOG_DETAIL_PATH` (default `.data/logs/detail.log`)
@@ -50,6 +61,16 @@ Discord modes:
 - Webhook-only notifications: set `DISCORD_WEBHOOK_URL`.
 - Bot + slash commands: set `DISCORD_BOT_TOKEN`, `DISCORD_APP_ID`, `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_ID`.
 - If both are set, notifications go to webhook while slash commands still run through the bot.
+
+Code watch mode:
+- `active`: polls external sources, updates `.data/codes.json`, and sends code notifications.
+- `passive`: does not poll external sources; only reads tracked code data and serves command output.
+- In multi-instance setups, run one active instance and keep others passive.
+
+Default code sources (`CODE_WATCH_SOURCES`):
+- `game8`: Game8 curated Endfield code page.
+- `destructoid`: Destructoid Endfield codes page.
+- `pocket_tactics`: Pocket Tactics Endfield codes page.
 
 ## Profile file
 
@@ -122,13 +143,17 @@ docker compose up -d --build
 ```
 
 ## Runtime behavior
-- Startup sequence: load config/profiles/state, refresh sign tokens, run catch-up for profiles that have not succeeded today (Asia/Shanghai), then start attendance and token-refresh crons.
+- Startup sequence: load config/profiles/state, refresh sign tokens, run catch-up for profiles that have not succeeded today (Asia/Shanghai), optional startup code scan (active mode), then start attendance/token-refresh/code-watch crons.
 - Scheduled attendance runs send per-profile Discord notifications (if configured).
 - Manual `/checkin` returns command response embeds and does not double-send scheduled notifications.
+- Scheduled code-watch runs scan configured sources with source-level interval limits, conditional requests (`If-None-Match` / `If-Modified-Since`), and backoff.
+- Code notifications are sent only once per code when confidence is sufficient (official/curated source, or cross-source confirmation).
 
 ## Data and logs
 - `.data/profiles.json`: profile credentials/headers.
 - `.data/state.json`: last successful day by profile.
+- `.data/codes.json`: tracked redeem codes and per-source polling metadata.
+- `.data/code-watch.lock`: lease file used to coordinate active polling instances.
 - `.data/logs/summary.log`: concise operational log.
 - `.data/logs/detail.log`: full structured detail log.
 
@@ -137,6 +162,8 @@ docker compose up -d --build
 - Attendance HTTP failure/non-zero code: verify `cred`, `sk-game-role`, signing inputs, and timezone assumptions.
 - Slash commands not visible: ensure `DISCORD_APP_ID` + `DISCORD_GUILD_ID` are set and bot has guild permissions.
 - No notifications in bot mode: ensure `DISCORD_CHANNEL_ID` points to a text channel the bot can send to.
+- Code watch idle in multi-instance deployment: confirm exactly one instance runs `CODE_WATCH_MODE=active`.
+- Code watch sees no updates: verify source accessibility from your environment and tune `CODE_WATCH_SOURCES` / `CODE_WATCH_CRON`.
 
 ## Security
 - Never commit `.env`, `.data/profiles.json`, or logs with secrets.
